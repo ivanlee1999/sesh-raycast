@@ -7,7 +7,6 @@ import { formatMinutes } from "./format";
 function buildMarkdown(data: Analytics): string {
   const lines: string[] = [];
 
-  // Today's Focus
   lines.push("# 📊 Focus Analytics");
   lines.push("");
   lines.push("## Today");
@@ -18,36 +17,14 @@ function buildMarkdown(data: Analytics): string {
   );
   lines.push("");
 
-  // Category Breakdown
-  if (data.categoryBreakdown && data.categoryBreakdown.length > 0) {
-    lines.push("## Category Breakdown");
-    lines.push("");
-    lines.push("| Category | Time | Sessions |");
-    lines.push("|----------|------|----------|");
-    for (const cat of data.categoryBreakdown) {
-      lines.push(
-        `| ${cat.category || "Uncategorized"} | ${formatMinutes(cat.totalMs)} | ${cat.count} |`,
-      );
-    }
-    lines.push("");
-  }
-
   // Last 7 Days
   if (data.days && data.days.length > 0) {
     lines.push("## Last 7 Days");
     lines.push("");
-    lines.push("| Date | Focus Time | Sessions |");
-    lines.push("|------|------------|----------|");
-    const recentDays = data.days.slice(0, 7);
-    for (const day of recentDays) {
-      const dateStr = new Date(day.date).toLocaleDateString(undefined, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      });
-      lines.push(
-        `| ${dateStr} | ${formatMinutes(day.totalMs)} | ${day.count} |`,
-      );
+    lines.push("| Day | Focus Time |");
+    lines.push("|-----|------------|");
+    for (const day of data.days) {
+      lines.push(`| ${day.label} | ${formatMinutes(day.ms)} |`);
     }
     lines.push("");
   }
@@ -86,14 +63,6 @@ export default function ViewAnalytics() {
               text={`${data.streak} days`}
               icon={Icon.Star}
             />
-            <Detail.Metadata.Separator />
-            {data.categoryBreakdown?.map((cat, i) => (
-              <Detail.Metadata.Label
-                key={i}
-                title={cat.category || "Uncategorized"}
-                text={`${formatMinutes(cat.totalMs)} (${cat.count} sessions)`}
-              />
-            ))}
           </Detail.Metadata>
         ) : undefined
       }

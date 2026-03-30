@@ -1,18 +1,15 @@
-export type TimerPhase = "idle" | "running" | "paused";
-export type SessionType = "focus" | "short-break" | "long-break";
-
 export interface TimerState {
-  phase: TimerPhase;
-  sessionType: SessionType;
-  intention: string | null;
-  category: string | null;
+  phase: string;
+  sessionType: string;
+  intention: string;
+  category: string;
   targetMs: number;
   remainingMs: number;
   overflowMs: number;
-  startedAt: string | null;
-  pausedAt: string | null;
-  updatedAt: string;
-  todoistTaskId?: string | null;
+  startedAt: number | null;
+  pausedAt: number | null;
+  updatedAt: number;
+  todoistTaskId: string | null;
 }
 
 export interface Category {
@@ -26,28 +23,20 @@ export interface Category {
 
 export interface Session {
   id: string;
-  intention: string | null;
-  category: string | null;
-  type: SessionType;
+  intention: string;
+  category: string;
+  type: string;
   targetMs: number;
   actualMs: number;
   overflowMs: number;
-  startedAt: string;
-  endedAt: string;
-  notes: string | null;
+  startedAt: number;
+  endedAt: number;
+  notes: string;
 }
 
 export interface AnalyticsDay {
-  date: string;
-  totalMs: number;
-  count: number;
-  categories: Record<string, number>;
-}
-
-export interface CategoryBreakdown {
-  category: string;
-  totalMs: number;
-  count: number;
+  label: string;
+  ms: number;
 }
 
 export interface Analytics {
@@ -55,5 +44,4 @@ export interface Analytics {
   todayCount: number;
   streak: number;
   days: AnalyticsDay[];
-  categoryBreakdown: CategoryBreakdown[];
 }
