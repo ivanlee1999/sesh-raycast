@@ -13,6 +13,8 @@ import { categoriesUrl, putTimer, getDefaultDurationMinutes } from "./api";
 import { buildStartPayload } from "./timer-state";
 
 const DURATION_OPTIONS = [
+  { value: "5", title: "5 minutes" },
+  { value: "10", title: "10 minutes" },
   { value: "15", title: "15 minutes" },
   { value: "20", title: "20 minutes" },
   { value: "25", title: "25 minutes" },
