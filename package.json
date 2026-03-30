@@ -2,7 +2,7 @@
   "name": "sesh",
   "title": "Sesh - Focus Timer",
   "description": "Control your sesh pomodoro timer from Raycast. Start focus sessions, view timer status in the menu bar, and track your productivity.",
-  "icon": "icon.png",
+  "icon": "icon.svg",
   "author": "ivan_lee",
   "categories": [
     "Productivity"
@@ -33,49 +33,56 @@
       "subtitle": "sesh",
       "description": "Show timer countdown in the menu bar",
       "mode": "menu-bar",
-      "interval": "10s"
+      "interval": "10s",
+      "icon": "clock.svg"
     },
     {
       "name": "start-focus",
       "title": "Start Focus Session",
       "subtitle": "sesh",
       "description": "Start a new focus session with category and intention",
-      "mode": "view"
+      "mode": "view",
+      "icon": "play.svg"
     },
     {
       "name": "quick-start",
       "title": "Quick Start Focus",
       "subtitle": "sesh",
       "description": "Instantly start a 25-minute focus session",
-      "mode": "no-view"
+      "mode": "no-view",
+      "icon": "bolt.svg"
     },
     {
       "name": "pause-resume",
       "title": "Pause/Resume Timer",
       "subtitle": "sesh",
       "description": "Toggle pause on the running timer",
-      "mode": "no-view"
+      "mode": "no-view",
+      "icon": "pause.svg"
     },
     {
       "name": "finish-session",
       "title": "Finish Session",
       "subtitle": "sesh",
       "description": "Complete the current focus session",
-      "mode": "no-view"
+      "mode": "no-view",
+      "icon": "checkmark.svg"
     },
     {
       "name": "view-history",
       "title": "View Session History",
       "subtitle": "sesh",
       "description": "Browse your recent focus sessions",
-      "mode": "view"
+      "mode": "view",
+      "icon": "list.svg"
     },
     {
       "name": "view-analytics",
       "title": "View Analytics",
       "subtitle": "sesh",
       "description": "See today's focus stats and streak",
-      "mode": "view"
+      "mode": "view",
+      "icon": "chart.svg"
     }
   ],
   "dependencies": {
