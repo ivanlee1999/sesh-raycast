@@ -5,7 +5,7 @@ import { buildStartPayload } from "./timer-state";
 export default async function QuickStart() {
   const durationMinutes = getDefaultDurationMinutes();
 
-  let category = "development";
+  let category: string | undefined = undefined;
   try {
     const categories = await getCategories();
     if (categories.length > 0) {
@@ -13,7 +13,7 @@ export default async function QuickStart() {
       category = defaultCat ? defaultCat.name : categories[0].name;
     }
   } catch {
-    // Fall back to "development" if categories can't be fetched
+    // Leave category undefined if categories can't be fetched
   }
 
   try {
