@@ -80,7 +80,7 @@ export async function putTimer(body: Partial<TimerState>): Promise<TimerState> {
 }
 
 export interface CompleteSessionPayload {
-  startedAt: string;
+  startedAt: number;
   intention?: string | null;
   category?: string | null;
   notes?: string | null;

@@ -67,7 +67,7 @@ export default function MenuBarTimer() {
     }
     try {
       await completeSession({
-        startedAt: timer.startedAt ?? new Date().toISOString(),
+        startedAt: timer.startedAt ?? Date.now(),
         intention: timer.intention,
         category: timer.category,
       });

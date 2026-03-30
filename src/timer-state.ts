@@ -4,14 +4,19 @@ import type { TimerState } from "./types";
  * Calculate the effective remaining milliseconds right now.
  * When the timer is running, we subtract the elapsed time since `updatedAt`.
  * When paused or idle, we return `remainingMs` as-is.
+ *
+ * All operands are coerced to Number() defensively — the server may return
+ * string values from SQLite, which would otherwise produce NaN.
  */
 export function getEffectiveRemainingMs(
   timer: TimerState,
   now = Date.now(),
 ): number {
-  if (timer.phase !== "running") return timer.remainingMs;
-  const elapsed = now - Date.parse(timer.updatedAt);
-  return Math.max(0, timer.remainingMs - elapsed);
+  const remaining = Number(timer.remainingMs) || 0;
+  if (timer.phase !== "running") return remaining;
+  const updatedAt = Number(timer.updatedAt) || now;
+  const elapsed = now - updatedAt;
+  return Math.max(0, remaining - elapsed);
 }
 
 /**
@@ -27,11 +32,11 @@ export function buildPausePayload(
     sessionType: timer.sessionType,
     intention: timer.intention,
     category: timer.category,
-    targetMs: timer.targetMs,
+    targetMs: Number(timer.targetMs) || 0,
     remainingMs: remaining,
-    overflowMs: timer.overflowMs,
+    overflowMs: Number(timer.overflowMs) || 0,
     startedAt: timer.startedAt,
-    pausedAt: new Date(now).toISOString(),
+    pausedAt: now,
   };
 }
 
@@ -44,9 +49,9 @@ export function buildResumePayload(timer: TimerState): Partial<TimerState> {
     sessionType: timer.sessionType,
     intention: timer.intention,
     category: timer.category,
-    targetMs: timer.targetMs,
-    remainingMs: timer.remainingMs,
-    overflowMs: timer.overflowMs,
+    targetMs: Number(timer.targetMs) || 0,
+    remainingMs: Number(timer.remainingMs) || 0,
+    overflowMs: Number(timer.overflowMs) || 0,
     startedAt: timer.startedAt,
     pausedAt: null,
   };
@@ -72,7 +77,7 @@ export function buildStartPayload(opts: {
     targetMs: ms,
     remainingMs: ms,
     overflowMs: 0,
-    startedAt: new Date(now).toISOString(),
+    startedAt: now,
     pausedAt: null,
   };
 }

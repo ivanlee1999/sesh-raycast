@@ -4,7 +4,8 @@ import type { TimerState } from "./types";
  * Format milliseconds as compact duration string: "25m", "1h 5m", "0m"
  */
 export function formatMinutes(ms: number): string {
-  const totalMin = Math.round(Math.max(0, ms) / 60_000);
+  const safe = Number.isFinite(ms) ? ms : 0;
+  const totalMin = Math.round(Math.max(0, safe) / 60_000);
   if (totalMin < 60) return `${totalMin}m`;
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
@@ -15,7 +16,8 @@ export function formatMinutes(ms: number): string {
  * Format milliseconds as countdown string: "18:32", "1:05:22"
  */
 export function formatCountdown(ms: number): string {
-  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const safe = Number.isFinite(ms) ? ms : 0;
+  const totalSec = Math.max(0, Math.floor(safe / 1000));
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
