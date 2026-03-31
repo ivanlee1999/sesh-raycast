@@ -37,6 +37,14 @@
       "icon": "clock.svg"
     },
     {
+      "name": "view-timer",
+      "title": "View Current Session",
+      "subtitle": "sesh",
+      "description": "View current timer session details with progress",
+      "mode": "view",
+      "icon": "clock.svg"
+    },
+    {
       "name": "start-focus",
       "title": "Start Focus Session",
       "subtitle": "sesh",

@@ -20,6 +20,8 @@ declare type Preferences = ExtensionPreferences
 declare namespace Preferences {
   /** Preferences accessible in the `menu-bar-timer` command */
   export type MenuBarTimer = ExtensionPreferences & {}
+  /** Preferences accessible in the `view-timer` command */
+  export type ViewTimer = ExtensionPreferences & {}
   /** Preferences accessible in the `start-focus` command */
   export type StartFocus = ExtensionPreferences & {}
   /** Preferences accessible in the `quick-start` command */
@@ -37,6 +39,8 @@ declare namespace Preferences {
 declare namespace Arguments {
   /** Arguments passed to the `menu-bar-timer` command */
   export type MenuBarTimer = {}
+  /** Arguments passed to the `view-timer` command */
+  export type ViewTimer = {}
   /** Arguments passed to the `start-focus` command */
   export type StartFocus = {}
   /** Arguments passed to the `quick-start` command */
