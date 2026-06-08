@@ -1,8 +1,7 @@
 import { Detail, ActionPanel, Action, Icon, Color, showHUD } from "@raycast/api";
-import { useFetch } from "@raycast/utils";
 import { useEffect, useState } from "react";
 import type { TimerState, Category } from "./types";
-import { timerUrl, categoriesUrl, putTimer, completeSession } from "./api";
+import { useTimer, useCategories, putTimer, completeSession } from "./api";
 import { formatCountdown, formatMinutes, getPhaseLabel, sessionTypeLabel } from "./format";
 import { getEffectiveRemainingMs, buildPausePayload, buildResumePayload } from "./timer-state";
 
@@ -13,8 +12,8 @@ function progressBar(pct: number, width = 20): string {
 }
 
 export default function ViewTimer() {
-  const { data: timer, isLoading, revalidate } = useFetch<TimerState>(timerUrl());
-  const { data: categories } = useFetch<Category[]>(categoriesUrl());
+  const { data: timer, isLoading, revalidate } = useTimer();
+  const { data: categories } = useCategories();
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {

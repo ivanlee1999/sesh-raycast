@@ -1,4 +1,9 @@
 
+## Setup
+
+- `Server URL`: defaults to `https://sesh.liyifan.us`
+- `App Username` / `App Password`: required when the sesh-web deployment is protected by the shared login wall. The extension will automatically POST to `/api/login`, cache the returned session cookie in Raycast local storage, and retry protected API calls.
+
 ## Testing
 
 ```bash

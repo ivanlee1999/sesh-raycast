@@ -7,9 +7,8 @@ import {
   popToRoot,
   Icon,
 } from "@raycast/api";
-import { useFetch } from "@raycast/utils";
 import type { Category } from "./types";
-import { categoriesUrl, putTimer, getDefaultDurationMinutes } from "./api";
+import { useCategories, putTimer, getDefaultDurationMinutes } from "./api";
 import { buildStartPayload } from "./timer-state";
 
 const DURATION_OPTIONS = [
@@ -37,12 +36,7 @@ interface FormValues {
 }
 
 export default function StartFocus() {
-  const { data: categories, isLoading } = useFetch<Category[]>(
-    categoriesUrl(),
-    {
-      keepPreviousData: true,
-    },
-  );
+  const { data: categories, isLoading } = useCategories();
 
   const defaultDuration = String(getDefaultDurationMinutes());
 

@@ -10,6 +10,10 @@
 type ExtensionPreferences = {
   /** Server URL - URL of your sesh-web server */
   "serverUrl": string,
+  /** App Username - Shared app-login username for protected sesh-web deployments */
+  "authUsername"?: string,
+  /** App Password - Shared app-login password for protected sesh-web deployments */
+  "authPassword"?: string,
   /** Default Focus Duration (minutes) - Default duration for quick-start focus sessions */
   "defaultDuration": string
 }

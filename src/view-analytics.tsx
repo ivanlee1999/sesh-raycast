@@ -1,7 +1,6 @@
 import { Detail, Icon } from "@raycast/api";
-import { useFetch } from "@raycast/utils";
 import type { Analytics } from "./types";
-import { analyticsUrl } from "./api";
+import { useAnalytics } from "./api";
 import { formatMinutes } from "./format";
 
 function buildMarkdown(data: Analytics): string {
@@ -33,9 +32,7 @@ function buildMarkdown(data: Analytics): string {
 }
 
 export default function ViewAnalytics() {
-  const { data, isLoading } = useFetch<Analytics>(analyticsUrl(), {
-    keepPreviousData: true,
-  });
+  const { data, isLoading } = useAnalytics();
 
   const markdown = data
     ? buildMarkdown(data)

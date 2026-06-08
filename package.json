@@ -18,6 +18,20 @@
       "default": "https://sesh.liyifan.us"
     },
     {
+      "name": "authUsername",
+      "title": "App Username",
+      "description": "Shared app-login username for protected sesh-web deployments",
+      "type": "textfield",
+      "required": false
+    },
+    {
+      "name": "authPassword",
+      "title": "App Password",
+      "description": "Shared app-login password for protected sesh-web deployments",
+      "type": "password",
+      "required": false
+    },
+    {
       "name": "defaultDuration",
       "title": "Default Focus Duration (minutes)",
       "description": "Default duration for quick-start focus sessions",

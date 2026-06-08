@@ -5,10 +5,9 @@ import {
   LaunchType,
   launchCommand,
 } from "@raycast/api";
-import { useFetch } from "@raycast/utils";
 import { useEffect, useState } from "react";
 import type { TimerState } from "./types";
-import { timerUrl, putTimer, completeSession } from "./api";
+import { useTimer, putTimer, completeSession } from "./api";
 import {
   getMenuBarTitle,
   getPhaseLabel,
@@ -22,11 +21,7 @@ import {
 } from "./timer-state";
 
 export default function MenuBarTimer() {
-  const {
-    data: timer,
-    isLoading,
-    revalidate,
-  } = useFetch<TimerState>(timerUrl());
+  const { data: timer, isLoading, revalidate } = useTimer();
   const [now, setNow] = useState(Date.now());
 
   // Tick every second for smooth countdown display

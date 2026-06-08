@@ -1,7 +1,6 @@
 import { Icon, List, Color } from "@raycast/api";
-import { useFetch } from "@raycast/utils";
 import type { Session } from "./types";
-import { sessionsUrl } from "./api";
+import { useSessions } from "./api";
 import {
   formatMinutes,
   formatClockTime,
@@ -47,9 +46,7 @@ function getCategoryColor(category: string | null): Color {
 }
 
 export default function ViewHistory() {
-  const { data: sessions, isLoading } = useFetch<Session[]>(sessionsUrl(), {
-    keepPreviousData: true,
-  });
+  const { data: sessions, isLoading } = useSessions();
 
   const groups = groupByDate(sessions ?? []);
 
