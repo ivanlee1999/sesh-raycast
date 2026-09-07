@@ -1,28 +1,18 @@
-import { describe, it, expect, vi } from "vitest";
-
-vi.mock("@raycast/api", () => ({
-  getPreferenceValues: () => ({
-    serverUrl: "http://localhost:3033",
-    defaultDuration: "25",
-  }),
-  showToast: vi.fn(),
-  showHUD: vi.fn(),
-  Toast: { Style: { Failure: "failure", Success: "success" } },
-  Icon: {},
-  Color: {},
-  closeMainWindow: vi.fn(),
-  popToRoot: vi.fn(),
-}));
+import { describe, expect, it } from "vitest";
 
 import {
-  getEffectiveRemainingMs,
+  buildAbandonPayload,
+  buildIdlePayload,
   buildPausePayload,
   buildResumePayload,
   buildStartPayload,
+  buildUpdatePayload,
+  getEffectiveOverflowMs,
+  getEffectiveRemainingMs,
+  getSignedRemainingMs,
+  isOverflowing,
 } from "../timer-state";
 import type { TimerState } from "../types";
-
-// ── helpers ──────────────────────────────────────────────────────────────────
 
 function makeTimer(overrides: Partial<TimerState> = {}): TimerState {
   return {
@@ -44,71 +34,88 @@ function makeTimer(overrides: Partial<TimerState> = {}): TimerState {
 // ── getEffectiveRemainingMs ──────────────────────────────────────────────────
 
 describe("getEffectiveRemainingMs", () => {
-  it("returns 0 for idle timer", () => {
-    const timer = makeTimer({ phase: "idle", remainingMs: 1_500_000 });
-    expect(getEffectiveRemainingMs(timer)).toBe(1_500_000);
+  it("returns the stored value for an idle timer", () => {
+    expect(
+      getEffectiveRemainingMs(
+        makeTimer({ phase: "idle", remainingMs: 1_500_000 }),
+      ),
+    ).toBe(1_500_000);
   });
 
-  it("returns remainingMs as-is for paused timer", () => {
-    const timer = makeTimer({
-      phase: "paused",
-      remainingMs: 1_200_000,
-    });
-    expect(getEffectiveRemainingMs(timer)).toBe(1_200_000);
+  it("returns the stored value for a paused timer", () => {
+    expect(
+      getEffectiveRemainingMs(
+        makeTimer({ phase: "paused", remainingMs: 1_200_000 }),
+      ),
+    ).toBe(1_200_000);
   });
 
-  it("calculates elapsed time correctly for running timer", () => {
-    const now = 1_000_000;
+  it("subtracts the time elapsed since updatedAt while running", () => {
     const timer = makeTimer({
       phase: "running",
       remainingMs: 1_500_000,
-      updatedAt: 900_000, // 100s ago
+      updatedAt: 900_000,
     });
-    // remaining = 1_500_000 - (1_000_000 - 900_000) = 1_400_000
-    expect(getEffectiveRemainingMs(timer, now)).toBe(1_400_000);
+    expect(getEffectiveRemainingMs(timer, 1_000_000)).toBe(1_400_000);
   });
 
   it("never returns negative", () => {
-    const now = 2_000_000;
     const timer = makeTimer({
       phase: "running",
       remainingMs: 100_000,
-      updatedAt: 1, // non-zero so it doesn't fallback to now
+      updatedAt: 1,
     });
-    // elapsed = 2_000_000 - 1 = 1_999_999 > remainingMs → clamped to 0
-    expect(getEffectiveRemainingMs(timer, now)).toBe(0);
+    expect(getEffectiveRemainingMs(timer, 2_000_000)).toBe(0);
   });
 
-  it("handles string values gracefully (NaN coercion bug)", () => {
-    const now = 1_000_000;
+  it("coerces string values from SQLite rather than producing NaN", () => {
     const timer = makeTimer({
       phase: "running",
       remainingMs: "1500000" as unknown as number,
       updatedAt: "900000" as unknown as number,
     });
-    const result = getEffectiveRemainingMs(timer, now);
+    const result = getEffectiveRemainingMs(timer, 1_000_000);
     expect(result).toBe(1_400_000);
     expect(Number.isFinite(result)).toBe(true);
   });
 
-  it("handles remainingMs as string for non-running timer", () => {
-    const timer = makeTimer({
-      phase: "paused",
-      remainingMs: "600000" as unknown as number,
-    });
-    expect(getEffectiveRemainingMs(timer)).toBe(600_000);
-  });
-
-  it("handles null updatedAt by using now", () => {
-    const now = 1_000_000;
+  it("falls back to now when updatedAt is missing", () => {
     const timer = makeTimer({
       phase: "running",
       remainingMs: 500_000,
       updatedAt: null as unknown as number,
     });
-    // updatedAt coerces to 0, falls back to now → elapsed = 0
-    const result = getEffectiveRemainingMs(timer, now);
-    expect(result).toBe(500_000);
+    expect(getEffectiveRemainingMs(timer, 1_000_000)).toBe(500_000);
+  });
+});
+
+// ── overtime ─────────────────────────────────────────────────────────────────
+
+describe("overtime", () => {
+  const overdue = makeTimer({
+    phase: "running",
+    targetMs: 60_000,
+    remainingMs: 10_000,
+    updatedAt: 1_000_000,
+  });
+
+  it("keeps the sign so a session past target reads as overtime", () => {
+    expect(getSignedRemainingMs(overdue, 1_100_000)).toBe(-90_000);
+  });
+
+  it("reports how far past target the session has run", () => {
+    expect(getEffectiveOverflowMs(overdue, 1_100_000)).toBe(90_000);
+    expect(isOverflowing(overdue, 1_100_000)).toBe(true);
+  });
+
+  it("reports no overtime while the session is still inside its target", () => {
+    expect(getEffectiveOverflowMs(overdue, 1_005_000)).toBe(0);
+    expect(isOverflowing(overdue, 1_005_000)).toBe(false);
+  });
+
+  it("does not call a paused timer overdue", () => {
+    const paused = makeTimer({ phase: "paused", remainingMs: -5_000 });
+    expect(isOverflowing(paused)).toBe(false);
   });
 });
 
@@ -117,7 +124,7 @@ describe("getEffectiveRemainingMs", () => {
 describe("buildStartPayload", () => {
   const fixedNow = 1_711_800_000_000;
 
-  it("all numeric fields are numbers, not strings", () => {
+  it("sends numbers, not strings", () => {
     const payload = buildStartPayload({
       sessionType: "focus",
       durationMinutes: 25,
@@ -129,17 +136,16 @@ describe("buildStartPayload", () => {
     expect(typeof payload.startedAt).toBe("number");
   });
 
-  it("startedAt is epoch ms (not ISO string)", () => {
+  it("sends startedAt as epoch ms, not an ISO string", () => {
     const payload = buildStartPayload({
       sessionType: "focus",
       durationMinutes: 25,
       now: fixedNow,
     });
     expect(payload.startedAt).toBe(fixedNow);
-    expect(typeof payload.startedAt).toBe("number");
   });
 
-  it("targetMs is calculated correctly from duration minutes", () => {
+  it("converts minutes to a target and a full remaining", () => {
     const payload = buildStartPayload({
       sessionType: "focus",
       durationMinutes: 25,
@@ -147,23 +153,16 @@ describe("buildStartPayload", () => {
     });
     expect(payload.targetMs).toBe(25 * 60_000);
     expect(payload.remainingMs).toBe(25 * 60_000);
+    expect(payload.overflowMs).toBe(0);
   });
 
-  it("sets phase to running", () => {
+  it("starts running and unpaused", () => {
     const payload = buildStartPayload({
-      sessionType: "focus",
-      durationMinutes: 10,
-      now: fixedNow,
-    });
-    expect(payload.phase).toBe("running");
-  });
-
-  it("sets pausedAt to null", () => {
-    const payload = buildStartPayload({
-      sessionType: "short-break",
+      sessionType: "break",
       durationMinutes: 5,
       now: fixedNow,
     });
+    expect(payload.phase).toBe("running");
     expect(payload.pausedAt).toBeNull();
   });
 
@@ -179,23 +178,33 @@ describe("buildStartPayload", () => {
     expect(payload.category).toBe("development");
   });
 
-  it("defaults intention and category to null when not provided", () => {
+  it("defaults intention and category to the empty string the server stores", () => {
     const payload = buildStartPayload({
       sessionType: "focus",
       durationMinutes: 25,
       now: fixedNow,
     });
-    expect(payload.intention).toBeNull();
-    expect(payload.category).toBeNull();
+    expect(payload.intention).toBe("");
+    expect(payload.category).toBe("");
   });
 
-  it("overflowMs is always 0 for a new session", () => {
+  it("encodes linked to-dos the way sesh-web stores them", () => {
+    const payload = buildStartPayload({
+      sessionType: "focus",
+      durationMinutes: 25,
+      taskRefs: ["12345", "things:ABC-DEF"],
+      now: fixedNow,
+    });
+    expect(payload.todoistTaskId).toBe("12345,things:ABC-DEF");
+  });
+
+  it("sends null rather than an empty string when nothing is linked", () => {
     const payload = buildStartPayload({
       sessionType: "focus",
       durationMinutes: 25,
       now: fixedNow,
     });
-    expect(payload.overflowMs).toBe(0);
+    expect(payload.todoistTaskId).toBeNull();
   });
 });
 
@@ -203,90 +212,177 @@ describe("buildStartPayload", () => {
 
 describe("buildPausePayload", () => {
   const fixedNow = 1_711_800_010_000;
+  const running = makeTimer({
+    phase: "running",
+    remainingMs: 1_500_000,
+    updatedAt: 1_711_800_000_000,
+  });
 
-  it("sets phase to paused", () => {
-    const timer = makeTimer({
-      phase: "running",
-      remainingMs: 1_500_000,
-      updatedAt: 1_711_800_000_000,
-    });
-    const payload = buildPausePayload(timer, fixedNow);
+  it("pauses at now with the time actually left", () => {
+    const payload = buildPausePayload(running, fixedNow);
     expect(payload.phase).toBe("paused");
-  });
-
-  it("sets pausedAt to now", () => {
-    const timer = makeTimer({
-      phase: "running",
-      remainingMs: 1_500_000,
-      updatedAt: 1_711_800_000_000,
-    });
-    const payload = buildPausePayload(timer, fixedNow);
     expect(payload.pausedAt).toBe(fixedNow);
-  });
-
-  it("computes remainingMs after elapsed time", () => {
-    const timer = makeTimer({
-      phase: "running",
-      remainingMs: 1_500_000,
-      updatedAt: 1_711_800_000_000,
-    });
-    // 10s elapsed → 1_500_000 - 10_000
-    const payload = buildPausePayload(timer, fixedNow);
     expect(payload.remainingMs).toBe(1_490_000);
   });
 
-  it("preserves targetMs as number (coercion)", () => {
+  it("coerces targetMs to a number", () => {
     const timer = makeTimer({
       phase: "running",
       targetMs: "1500000" as unknown as number,
-      remainingMs: 1_500_000,
       updatedAt: fixedNow,
     });
     const payload = buildPausePayload(timer, fixedNow);
     expect(payload.targetMs).toBe(1_500_000);
-    expect(typeof payload.targetMs).toBe("number");
+  });
+
+  it("keeps the linked to-dos — PUT stores todoistTaskId ?? null, so dropping it unlinks the session", () => {
+    const timer = makeTimer({ ...running, todoistTaskId: "things:ABC" });
+    expect(buildPausePayload(timer, fixedNow).todoistTaskId).toBe("things:ABC");
+  });
+
+  it("records how far past target an overdue session was paused", () => {
+    const overdue = makeTimer({
+      phase: "running",
+      remainingMs: 1_000,
+      updatedAt: 1_711_800_000_000,
+    });
+    const payload = buildPausePayload(overdue, fixedNow);
+    expect(payload.remainingMs).toBe(0);
+    expect(payload.overflowMs).toBe(9_000);
   });
 });
 
 // ── buildResumePayload ───────────────────────────────────────────────────────
 
 describe("buildResumePayload", () => {
-  it("sets phase to running", () => {
-    const timer = makeTimer({
-      phase: "paused",
-      remainingMs: 1_200_000,
-    });
-    const payload = buildResumePayload(timer);
-    expect(payload.phase).toBe("running");
-  });
-
-  it("sets pausedAt to null", () => {
+  it("resumes running and unpaused", () => {
     const timer = makeTimer({
       phase: "paused",
       remainingMs: 1_200_000,
       pausedAt: 1_711_800_000_000,
     });
     const payload = buildResumePayload(timer);
+    expect(payload.phase).toBe("running");
     expect(payload.pausedAt).toBeNull();
   });
 
-  it("preserves remainingMs as number (coercion)", () => {
+  it("coerces remainingMs and overflowMs to numbers", () => {
     const timer = makeTimer({
       phase: "paused",
       remainingMs: "600000" as unknown as number,
-    });
-    const payload = buildResumePayload(timer);
-    expect(payload.remainingMs).toBe(600_000);
-    expect(typeof payload.remainingMs).toBe("number");
-  });
-
-  it("preserves overflowMs as number (coercion)", () => {
-    const timer = makeTimer({
-      phase: "paused",
       overflowMs: "5000" as unknown as number,
     });
     const payload = buildResumePayload(timer);
+    expect(payload.remainingMs).toBe(600_000);
     expect(payload.overflowMs).toBe(5_000);
-    expect(typeof payload.overflowMs).toBe("number");
+  });
+
+  it("keeps the linked to-dos", () => {
+    const timer = makeTimer({
+      phase: "paused",
+      remainingMs: 60_000,
+      todoistTaskId: "12345",
+    });
+    expect(buildResumePayload(timer).todoistTaskId).toBe("12345");
+  });
+});
+
+// ── buildIdlePayload / buildAbandonPayload ───────────────────────────────────
+
+describe("buildIdlePayload", () => {
+  it("parks a topic on the server without starting a clock", () => {
+    const payload = buildIdlePayload({
+      intention: "Read the spec",
+      category: "learning",
+      taskRefs: ["things:ABC"],
+      targetMs: 25 * 60_000,
+    });
+    expect(payload.phase).toBe("idle");
+    expect(payload.startedAt).toBeNull();
+    expect(payload.remainingMs).toBe(25 * 60_000);
+    expect(payload.todoistTaskId).toBe("things:ABC");
+  });
+
+  it("abandoning clears the topic and the links", () => {
+    const payload = buildAbandonPayload(25 * 60_000);
+    expect(payload.phase).toBe("idle");
+    expect(payload.intention).toBe("");
+    expect(payload.todoistTaskId).toBeNull();
+  });
+});
+
+// ── buildUpdatePayload ───────────────────────────────────────────────────────
+
+describe("buildUpdatePayload", () => {
+  const running = makeTimer({
+    phase: "running",
+    intention: "Old title",
+    category: "development",
+    targetMs: 1_500_000,
+    remainingMs: 1_500_000,
+    updatedAt: 1_711_800_000_000,
+    todoistTaskId: "12345",
+  });
+
+  it("re-titles without moving the clock — PUT restamps updatedAt, so remaining must be as of now", () => {
+    const payload = buildUpdatePayload(
+      running,
+      { intention: "New title" },
+      1_711_800_060_000,
+    );
+    expect(payload.intention).toBe("New title");
+    expect(payload.remainingMs).toBe(1_440_000);
+    expect(payload.targetMs).toBe(1_500_000);
+  });
+
+  it("keeps the linked to-dos when none are named", () => {
+    expect(
+      buildUpdatePayload(running, { intention: "New" }, 1_711_800_000_000)
+        .todoistTaskId,
+    ).toBe("12345");
+  });
+
+  it("clears the links when an empty list is named", () => {
+    expect(
+      buildUpdatePayload(running, { taskRefs: [] }, 1_711_800_000_000)
+        .todoistTaskId,
+    ).toBeNull();
+  });
+
+  it("extends both the target and what is left of it", () => {
+    const payload = buildUpdatePayload(
+      running,
+      { addMinutes: 10 },
+      1_711_800_000_000,
+    );
+    expect(payload.targetMs).toBe(2_100_000);
+    expect(payload.remainingMs).toBe(2_100_000);
+  });
+
+  it("extending an overdue session brings it back inside its target", () => {
+    const overdue = makeTimer({
+      ...running,
+      remainingMs: -60_000,
+      updatedAt: 1_711_800_000_000,
+    });
+    const payload = buildUpdatePayload(
+      overdue,
+      { addMinutes: 5 },
+      1_711_800_000_000,
+    );
+    expect(payload.remainingMs).toBe(240_000);
+    expect(payload.overflowMs).toBe(0);
+  });
+
+  it("reads a paused timer's remaining straight off the row", () => {
+    const paused = makeTimer({
+      ...running,
+      phase: "paused",
+      remainingMs: 600_000,
+    });
+    expect(
+      buildUpdatePayload(paused, { intention: "New" }, 1_711_900_000_000)
+        .remainingMs,
+    ).toBe(600_000);
   });
 });

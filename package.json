@@ -1,7 +1,7 @@
 {
   "name": "sesh",
   "title": "Sesh - Focus Timer",
-  "description": "Control your sesh pomodoro timer from Raycast. Start focus sessions, view timer status in the menu bar, and track your productivity.",
+  "description": "Run your sesh focus timer from Raycast: start and finish sessions, check what is running, pick a Things or Todoist to-do to work on, and set a custom intention.",
   "icon": "icon.svg",
   "author": "ivan_lee",
   "categories": [
@@ -34,7 +34,7 @@
     {
       "name": "defaultDuration",
       "title": "Default Focus Duration (minutes)",
-      "description": "Default duration for quick-start focus sessions",
+      "description": "Fallback focus length, used only when the sesh server's own setting cannot be read. sesh's Focus Duration setting normally wins.",
       "type": "textfield",
       "required": false,
       "default": "25"
@@ -52,9 +52,9 @@
     },
     {
       "name": "view-timer",
-      "title": "View Current Session",
+      "title": "Check Session",
       "subtitle": "sesh",
-      "description": "View current timer session details with progress",
+      "description": "See what is running: progress, overtime, category and linked to-dos",
       "mode": "view",
       "icon": "clock.svg"
     },
@@ -62,7 +62,7 @@
       "name": "start-focus",
       "title": "Start Focus Session",
       "subtitle": "sesh",
-      "description": "Start a new focus session with category and intention",
+      "description": "Start a session with an intention, a category and linked to-dos",
       "mode": "view",
       "icon": "play.svg"
     },
@@ -70,9 +70,25 @@
       "name": "quick-start",
       "title": "Quick Start Focus",
       "subtitle": "sesh",
-      "description": "Instantly start a 25-minute focus session",
+      "description": "Start focusing on whatever sesh already has queued up, at your configured length",
       "mode": "no-view",
       "icon": "bolt.svg"
+    },
+    {
+      "name": "tasks",
+      "title": "Tasks",
+      "subtitle": "sesh",
+      "description": "Browse your Things and Todoist to-dos, start a session on one, or add a new one",
+      "mode": "view",
+      "icon": "list.svg"
+    },
+    {
+      "name": "set-intention",
+      "title": "Set Intention",
+      "subtitle": "sesh",
+      "description": "Write a custom intention for the running session, or queue one up for the next",
+      "mode": "view",
+      "icon": "pencil.svg"
     },
     {
       "name": "pause-resume",
@@ -86,7 +102,7 @@
       "name": "finish-session",
       "title": "Finish Session",
       "subtitle": "sesh",
-      "description": "Complete the current focus session",
+      "description": "End the running session and record it",
       "mode": "no-view",
       "icon": "checkmark.svg"
     },

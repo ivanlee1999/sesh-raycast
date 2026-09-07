@@ -8,12 +8,17 @@ import { describe, it, expect } from "vitest";
  * compile time (via tsc) or at the assertion level below.
  */
 
-import type {
-  TimerState,
-  Category,
-  Session,
-  Analytics,
-  AnalyticsDay,
+import {
+  enabledProviders,
+  isTodoistEnabled,
+  resolveProvider,
+  taskKey,
+  type Analytics,
+  type AnalyticsDay,
+  type Category,
+  type ExternalTask,
+  type Session,
+  type TimerState,
 } from "../types";
 
 describe("TimerState interface", () => {
@@ -147,5 +152,78 @@ describe("Session interface", () => {
     expect(typeof session.actualMs).toBe("number");
     expect(typeof session.startedAt).toBe("number");
     expect(typeof session.endedAt).toBe("number");
+  });
+});
+
+// ── Tasks ────────────────────────────────────────────────────────────────────
+
+describe("ExternalTask interface", () => {
+  it("matches the shape both task routes normalise into", () => {
+    const task: ExternalTask = {
+      id: "ABC-123",
+      provider: "things",
+      content: "Write the spec",
+      duration: null,
+      labels: ["writing"],
+      priority: 4,
+      projectId: null,
+      projectName: "Things",
+      due: "today",
+      dueDate: "2026-03-30",
+      bucket: "today",
+      areaName: "Work",
+      dueLabel: "Today",
+      category: "writing",
+      completed: false,
+    };
+
+    expect(typeof task.id).toBe("string");
+    expect(Array.isArray(task.labels)).toBe(true);
+    expect(typeof task.priority).toBe("number");
+  });
+
+  it("treats a task with no provider as Todoist, since that predates the field", () => {
+    const legacy: ExternalTask = {
+      id: "1",
+      content: "Old",
+      duration: null,
+      labels: [],
+      priority: 4,
+    };
+    expect(resolveProvider(legacy)).toBe("todoist");
+  });
+
+  it("keys a task on both provider and id, because ids only repeat across apps", () => {
+    const todoist: ExternalTask = {
+      id: "1",
+      provider: "todoist",
+      content: "A",
+      duration: null,
+      labels: [],
+      priority: 4,
+    };
+    const things: ExternalTask = {
+      id: "1",
+      provider: "things",
+      content: "B",
+      duration: null,
+      labels: [],
+      priority: 4,
+    };
+    expect(taskKey(todoist)).not.toBe(taskKey(things));
+  });
+});
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+
+describe("provider settings", () => {
+  it("treats a missing todoistEnabled as on, so an upgrade cannot take Todoist away", () => {
+    expect(isTodoistEnabled({})).toBe(true);
+    expect(enabledProviders({})).toEqual(["todoist", "things"]);
+  });
+
+  it("stops querying Todoist entirely when it is switched off", () => {
+    expect(isTodoistEnabled({ todoistEnabled: false })).toBe(false);
+    expect(enabledProviders({ todoistEnabled: false })).toEqual(["things"]);
   });
 });

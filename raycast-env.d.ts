@@ -14,7 +14,7 @@ type ExtensionPreferences = {
   "authUsername"?: string,
   /** App Password - Shared app-login password for protected sesh-web deployments */
   "authPassword"?: string,
-  /** Default Focus Duration (minutes) - Default duration for quick-start focus sessions */
+  /** Default Focus Duration (minutes) - Fallback focus length, used only when the sesh server's own setting cannot be read. sesh's Focus Duration setting normally wins. */
   "defaultDuration": string
 }
 
@@ -30,6 +30,10 @@ declare namespace Preferences {
   export type StartFocus = ExtensionPreferences & {}
   /** Preferences accessible in the `quick-start` command */
   export type QuickStart = ExtensionPreferences & {}
+  /** Preferences accessible in the `tasks` command */
+  export type Tasks = ExtensionPreferences & {}
+  /** Preferences accessible in the `set-intention` command */
+  export type SetIntention = ExtensionPreferences & {}
   /** Preferences accessible in the `pause-resume` command */
   export type PauseResume = ExtensionPreferences & {}
   /** Preferences accessible in the `finish-session` command */
@@ -49,6 +53,10 @@ declare namespace Arguments {
   export type StartFocus = {}
   /** Arguments passed to the `quick-start` command */
   export type QuickStart = {}
+  /** Arguments passed to the `tasks` command */
+  export type Tasks = {}
+  /** Arguments passed to the `set-intention` command */
+  export type SetIntention = {}
   /** Arguments passed to the `pause-resume` command */
   export type PauseResume = {}
   /** Arguments passed to the `finish-session` command */

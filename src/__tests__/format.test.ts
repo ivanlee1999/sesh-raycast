@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@raycast/api", () => ({
   getPreferenceValues: () => ({
@@ -22,6 +22,7 @@ import {
   getPhaseLabel,
   getMenuBarTitle,
   sessionTypeLabel,
+  formatRating,
 } from "../format";
 import type { TimerState } from "../types";
 
@@ -124,112 +125,169 @@ describe("formatCountdown", () => {
   });
 });
 
-// ── formatClockTime ──────────────────────────────────────────────────────────
+// ── formatClockTime / formatDate ────────────────────────────────────────────
 
+/**
+ * sesh returns epoch milliseconds. Older rows and hand-built fixtures use ISO
+ * strings, and both have to render — a history row showing "Invalid Date" was
+ * the whole reason these accept either.
+ */
 describe("formatClockTime", () => {
-  it("returns a non-empty string for a valid ISO timestamp", () => {
-    const result = formatClockTime("2026-03-30T14:30:00Z");
-    expect(result).toBeTruthy();
-    // Locale-dependent, so just check it contains digits
+  it("renders epoch milliseconds", () => {
+    const result = formatClockTime(Date.UTC(2026, 2, 30, 14, 30));
     expect(result).toMatch(/\d/);
+  });
+
+  it("renders an ISO timestamp", () => {
+    expect(formatClockTime("2026-03-30T14:30:00Z")).toMatch(/\d/);
+  });
+
+  it("agrees between the two for the same instant", () => {
+    const ms = Date.UTC(2026, 2, 30, 14, 30);
+    expect(formatClockTime(ms)).toBe(
+      formatClockTime(new Date(ms).toISOString()),
+    );
   });
 });
 
-// ── formatDate ───────────────────────────────────────────────────────────────
-
 describe("formatDate", () => {
-  it("returns a non-empty string for a valid ISO date", () => {
-    const result = formatDate("2026-03-30T00:00:00Z");
-    expect(result).toBeTruthy();
-    expect(result).toMatch(/\d/);
+  it("renders epoch milliseconds", () => {
+    expect(formatDate(Date.UTC(2026, 2, 30))).toMatch(/\d/);
+  });
+
+  it("renders an ISO date", () => {
+    expect(formatDate("2026-03-30T00:00:00Z")).toMatch(/\d/);
   });
 });
 
 // ── getPhaseLabel ────────────────────────────────────────────────────────────
 
 describe("getPhaseLabel", () => {
-  it("returns 'IDLE' for idle phase", () => {
+  it("returns 'IDLE' for an idle timer", () => {
     expect(getPhaseLabel(makeTimer({ phase: "idle" }))).toBe("IDLE");
   });
 
-  it("returns 'PAUSED' for paused phase", () => {
+  it("returns 'PAUSED' for a paused timer", () => {
     expect(getPhaseLabel(makeTimer({ phase: "paused" }))).toBe("PAUSED");
   });
 
-  it("returns 'FOCUS' for running focus session", () => {
-    expect(
-      getPhaseLabel(makeTimer({ phase: "running", sessionType: "focus" })),
-    ).toBe("FOCUS");
+  it("returns 'FOCUS' for a running focus session", () => {
+    const timer = makeTimer({
+      phase: "running",
+      sessionType: "focus",
+      remainingMs: 600_000,
+      updatedAt: 1_000,
+    });
+    expect(getPhaseLabel(timer, 1_000)).toBe("FOCUS");
   });
 
-  it("returns 'SHORT BREAK' for running short-break", () => {
-    expect(
-      getPhaseLabel(
-        makeTimer({ phase: "running", sessionType: "short-break" }),
-      ),
-    ).toBe("SHORT BREAK");
+  it("returns 'BREAK' for a running break", () => {
+    const timer = makeTimer({
+      phase: "running",
+      sessionType: "break",
+      remainingMs: 300_000,
+      updatedAt: 1_000,
+    });
+    expect(getPhaseLabel(timer, 1_000)).toBe("BREAK");
   });
 
-  it("returns 'LONG BREAK' for running long-break", () => {
-    expect(
-      getPhaseLabel(
-        makeTimer({ phase: "running", sessionType: "long-break" }),
-      ),
-    ).toBe("LONG BREAK");
+  it("returns 'OVERTIME' once a session runs past its target", () => {
+    const timer = makeTimer({
+      phase: "running",
+      sessionType: "focus",
+      remainingMs: 1_000,
+      updatedAt: 1_000,
+    });
+    expect(getPhaseLabel(timer, 61_000)).toBe("OVERTIME");
   });
 
-  it("returns 'RUNNING' for unknown session type", () => {
-    expect(
-      getPhaseLabel(makeTimer({ phase: "running", sessionType: "unknown" })),
-    ).toBe("RUNNING");
+  it("still reads the hyphenated types older versions of this extension wrote", () => {
+    const timer = makeTimer({
+      phase: "running",
+      sessionType: "long-break",
+      remainingMs: 900_000,
+      updatedAt: 1_000,
+    });
+    expect(getPhaseLabel(timer, 1_000)).toBe("LONG BREAK");
   });
 });
 
 // ── getMenuBarTitle ──────────────────────────────────────────────────────────
 
 describe("getMenuBarTitle", () => {
-  it("returns 'sesh' for idle timer", () => {
-    expect(getMenuBarTitle(makeTimer({ phase: "idle" }), 0)).toBe("sesh");
+  it("returns 'sesh' for an idle timer", () => {
+    expect(getMenuBarTitle(makeTimer({ phase: "idle" }))).toBe("sesh");
   });
 
-  it("returns paused icon with countdown for paused timer", () => {
-    const result = getMenuBarTitle(makeTimer({ phase: "paused" }), 1_500_000);
-    expect(result).toBe("⏸ 25:00");
+  it("shows a pause icon and the frozen countdown when paused", () => {
+    const timer = makeTimer({ phase: "paused", remainingMs: 90_000 });
+    expect(getMenuBarTitle(timer)).toBe("⏸ 1:30");
   });
 
-  it("returns timer icon with countdown for running focus", () => {
-    const result = getMenuBarTitle(
-      makeTimer({ phase: "running", sessionType: "focus" }),
-      1_500_000,
-    );
-    expect(result).toBe("⏱ 25:00");
+  it("counts down from the time actually left in a running focus session", () => {
+    const timer = makeTimer({
+      phase: "running",
+      sessionType: "focus",
+      remainingMs: 90_000,
+      updatedAt: 1_000,
+    });
+    expect(getMenuBarTitle(timer, 31_000)).toBe("⏱ 1:00");
   });
 
-  it("returns coffee icon for running break", () => {
-    const result = getMenuBarTitle(
-      makeTimer({ phase: "running", sessionType: "short-break" }),
-      300_000,
-    );
-    expect(result).toBe("☕ 5:00");
+  it("shows a coffee cup for a break", () => {
+    const timer = makeTimer({
+      phase: "running",
+      sessionType: "break",
+      remainingMs: 300_000,
+      updatedAt: 1_000,
+    });
+    expect(getMenuBarTitle(timer, 1_000)).toBe("☕ 5:00");
+  });
+
+  it("counts up behind a plus once the session is over its target", () => {
+    const timer = makeTimer({
+      phase: "running",
+      sessionType: "focus",
+      remainingMs: 10_000,
+      updatedAt: 1_000,
+    });
+    expect(getMenuBarTitle(timer, 101_000)).toBe("⏱ +1:30");
   });
 });
 
 // ── sessionTypeLabel ─────────────────────────────────────────────────────────
 
 describe("sessionTypeLabel", () => {
-  it("returns 'Focus' for 'focus'", () => {
+  it("names the two types the server actually stores", () => {
     expect(sessionTypeLabel("focus")).toBe("Focus");
+    expect(sessionTypeLabel("break")).toBe("Break");
   });
 
-  it("returns 'Short Break' for 'short-break'", () => {
+  it("still names the hyphenated types sitting in older session rows", () => {
     expect(sessionTypeLabel("short-break")).toBe("Short Break");
-  });
-
-  it("returns 'Long Break' for 'long-break'", () => {
     expect(sessionTypeLabel("long-break")).toBe("Long Break");
   });
 
-  it("returns the raw value for unknown types", () => {
-    expect(sessionTypeLabel("custom")).toBe("custom");
+  it("passes an unknown type through", () => {
+    expect(sessionTypeLabel("meditation")).toBe("meditation");
+  });
+});
+
+// ── formatRating ─────────────────────────────────────────────────────────────
+
+describe("formatRating", () => {
+  it("draws an unrated session as an em dash", () => {
+    expect(formatRating(0)).toBe("—");
+    expect(formatRating(undefined)).toBe("—");
+  });
+
+  it("draws a rating out of five", () => {
+    expect(formatRating(3)).toBe("★★★☆☆");
+    expect(formatRating(5)).toBe("★★★★★");
+  });
+
+  it("clamps a rating the server would have clamped anyway", () => {
+    expect(formatRating(9)).toBe("★★★★★");
+    expect(formatRating(-2)).toBe("—");
   });
 });

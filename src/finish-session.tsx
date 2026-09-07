@@ -1,8 +1,15 @@
 import { showHUD } from "@raycast/api";
-import { getTimer, completeSession } from "./api";
+import { completeSession, getTimer } from "./api";
 import { formatMinutes } from "./format";
-import { getEffectiveRemainingMs } from "./timer-state";
 
+/**
+ * End the running session and record it.
+ *
+ * The arithmetic belongs to the server: it compares and swaps on `startedAt`,
+ * so a session the web app or the background completer already saved comes back
+ * as `completed: false` instead of being written twice — and it logs the
+ * minutes to any linked to-do on the way past.
+ */
 export default async function FinishSession() {
   let timer;
   try {
@@ -17,17 +24,22 @@ export default async function FinishSession() {
     return;
   }
 
+  if (!timer.startedAt) {
+    await showHUD("This session has no start time — finish it in sesh");
+    return;
+  }
+
   try {
-    const remaining = getEffectiveRemainingMs(timer);
-    const actualMs = timer.targetMs - remaining;
-
-    await completeSession({
-      startedAt: timer.startedAt ?? Date.now(),
+    const result = await completeSession({
+      startedAt: timer.startedAt,
       intention: timer.intention,
-      category: timer.category,
     });
-
-    await showHUD(`✅ Session complete — ${formatMinutes(actualMs)} focused`);
+    if (!result?.completed) {
+      await showHUD("Already saved — sesh had finished this one");
+      return;
+    }
+    const focused = formatMinutes(result.session?.actualMs ?? 0);
+    await showHUD(`✅ Session complete — ${focused} focused`);
   } catch {
     await showHUD("❌ Failed to finish session");
   }

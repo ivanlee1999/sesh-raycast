@@ -3,7 +3,8 @@ import { getTimer, putTimer } from "./api";
 import {
   buildPausePayload,
   buildResumePayload,
-  getEffectiveRemainingMs,
+  getEffectiveOverflowMs,
+  getSignedRemainingMs,
 } from "./timer-state";
 import { formatCountdown } from "./format";
 
@@ -23,17 +24,23 @@ export default async function PauseResume() {
 
   try {
     if (timer.phase === "running") {
-      const payload = buildPausePayload(timer);
-      await putTimer(payload);
-      const remaining = getEffectiveRemainingMs(timer);
-      await showHUD(`⏸ Paused — ${formatCountdown(remaining)} remaining`);
-    } else if (timer.phase === "paused") {
-      const payload = buildResumePayload(timer);
-      await putTimer(payload);
+      const overtime = getEffectiveOverflowMs(timer);
+      await putTimer(buildPausePayload(timer));
       await showHUD(
-        `▶️ Resumed — ${formatCountdown(timer.remainingMs)} remaining`,
+        overtime > 0
+          ? `⏸ Paused — ${formatCountdown(overtime)} over`
+          : `⏸ Paused — ${formatCountdown(getSignedRemainingMs(timer))} remaining`,
       );
+      return;
     }
+
+    await putTimer(buildResumePayload(timer));
+    const remaining = Number(timer.remainingMs) || 0;
+    await showHUD(
+      remaining < 0
+        ? `▶️ Resumed — ${formatCountdown(-remaining)} over`
+        : `▶️ Resumed — ${formatCountdown(remaining)} remaining`,
+    );
   } catch {
     await showHUD("❌ Failed to update timer");
   }
