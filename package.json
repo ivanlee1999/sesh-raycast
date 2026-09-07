@@ -137,8 +137,10 @@
     "vitest": "^4.1.2"
   },
   "scripts": {
-    "build": "ray build",
+    "build": "ray build -e dist",
+    "build:beta": "ray build -e dist --target x",
     "dev": "ray develop",
+    "dev:beta": "sh scripts/dev-beta.sh",
     "fix-lint": "ray lint --fix",
     "lint": "ray lint",
     "prepublishOnly": "echo \"Error: no publish\" && exit 1",
